@@ -24,3 +24,6 @@ dmmp:
 
 invalidate:
 	docker-compose exec php bash -c "bin/console app:invalidate-coordinates-cache"
+
+phpunit:
+	docker-compose exec php bash -c "php bin/phpunit"

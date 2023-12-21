@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Core\Entity;
 
 use App\Core\Enum\GeocodingServiceProvider;
-use App\Core\Repository\ResolvedAddressRepository;
+use App\Core\Repository\DoctrineResolvedAddressRepository;
 use DateTime;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: ResolvedAddressRepository::class)]
+#[ORM\Entity(repositoryClass: DoctrineResolvedAddressRepository::class)]
 #[ORM\Table(name: 'resolved_addresses')]
 #[ORM\Index(columns: ['country_code', 'city', 'street', 'postcode'], name: 'resolved_addresses_search_idx')]
 #[ORM\Index(columns: ['created_at'], name: 'resolved_addresses_created_at_idx')]

@@ -41,6 +41,11 @@ final class HttpRequestBuilder
         return (new self('PUT', $uri));
     }
 
+    public static function PATCH(string $uri): self
+    {
+        return (new self('PATCH', $uri));
+    }
+
     public static function DELETE(string $uri): self
     {
         return (new self('DELETE', $uri));
