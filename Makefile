@@ -27,3 +27,6 @@ invalidate:
 
 phpunit:
 	docker-compose exec php bash -c "php bin/phpunit"
+
+cc:
+	docker-compose exec php bash -c "bin/console cache:clear"
