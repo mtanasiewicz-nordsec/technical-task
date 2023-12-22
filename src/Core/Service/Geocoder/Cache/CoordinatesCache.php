@@ -12,7 +12,7 @@ use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
 use DateTime;
 
-readonly class CoordinatesCache
+final readonly class CoordinatesCache
 {
     public function __construct(
         private CoordinatesFinder $coordinatesFinder,

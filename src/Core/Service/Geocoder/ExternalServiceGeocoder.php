@@ -9,7 +9,7 @@ use App\Core\Service\Geocoder\Cache\CoordinatesCache;
 use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
 
-readonly class ExternalServiceGeocoder
+final readonly class ExternalServiceGeocoder
 {
     public function __construct(
         private GeocoderRegistry $registry,

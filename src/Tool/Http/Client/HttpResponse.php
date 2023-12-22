@@ -20,16 +20,6 @@ final class HttpResponse implements ResponseInterface
         return $this->getStatusCode() >= 200 && $this->getStatusCode() < 300;
     }
 
-    public function isBadRequest(): bool
-    {
-        return $this->getStatusCode() >= 400 && $this->getStatusCode() < 500;
-    }
-
-    public function isServerError(): bool
-    {
-        return $this->getStatusCode() >= 500;
-    }
-
     /**
      * @inheritDoc
      */

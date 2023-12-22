@@ -1,0 +1,8 @@
+services:
+    App\Tool\Http\Client\PSR\GuzzlePSRClientFactory:
+        public: true
+
+    App\Core\Finder\DoctrineCoordinatesFinder:
+        public: true
+        arguments:
+            $entityManager: '@doctrine.orm.entity_manager'

@@ -10,6 +10,7 @@ return (new PhpCsFixer\Config())
     ->setRiskyAllowed(true)
     ->setRules([
         '@PSR12' => true,
+        'final_class' => true,
         'declare_strict_types' => true,
         'yoda_style' => false,
         'single_quote' => true,
