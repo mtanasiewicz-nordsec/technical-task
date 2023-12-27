@@ -1,48 +1,70 @@
-## Architecture
-Decided to proceed with classic, non-modular symfony architecture with one exception:
-introducing vendor-agnostic approach. Using any advanced concepts, like
-* layered architecture
-* ports & adapters
-* CQRS
-* modular approach
+# Coordinates resolver
 
-would be an overkill for such a small project. At this moment if client decides to further
-develop this app, all of the above can be quickly introduced.
+This project is aimed to evaluate OOP and overall code design skills.
 
-### Solution
-I have decided to modify the api a bit and reduce the application to single entry point without
-the need to create separate endpoints for every new service provider. This can be easily solved by
-single queryParam with service provider key as in this solution. Adding new geocoding provider is as
-simple as following these steps:
-1. Add enum case in GeocodingServiceProvider with name of the service provider.
-2. Add implementation of GeocoderInterface in separate folder.
-3. Add unit test for new implementation similar to HereMapsGeocoderTest.php.
-4. And that's all...
+## High level overview
 
-### Vendor agnostic approach
-For me it's one of the most important architectural aspects of every application. All libraries that we use in
-our domain, should be wrapped in Facades, that residue in separate Tooling directory and should never be directly used in 
-domain specific code. This significantly reduces code coupling, and leaves us with possibility to quickly exchange
-libraries in case of bugs or dropped developer support. Although the application is still coupled to Symfony framework
-for example in Controllers, I accept this coupling because switching frameworks is extremely rare.
+Main functionality of this project is this: have a /coordinates endpoint which accepts 4 params: country code, city, street and postcode and as a response API should return coordinates (latitude and longitude) of provided address by using geocoding services.
 
-### Tests
-Tests consist of 3 layers:
+To make things a bit more challenging, API should support:
+* more than one external geocoding provider (Google maps and Here maps) which would be called sequentially if first provider does not find that address
+* implement layer responsible for caching results to DB (MySQL)
+* I should be able to use either whole stack (cache+here maps+google maps) or individual geocoder (google maps or here maps) or cached geocoder (cache+google maps for example)
 
-#### Unit tests
-Used for tooling and specific implementations, only there where they are needed. I'm not a fan of covering every class
-with corresponding Unit tests, as this stiffens the code too much. If we have an application service, that uses lots of
-DI injected services, and we cover all of them with Units test, whenever we would like to introduce some refactoring,
-naming changes or class changes inside this stack, those tests would immediately fail. If we cover the application
-services with integration tests, and just test for inputs and outputs, mocking
-only stuff that's really should/could be mocked like external API calls, than introducing any refactoring would leave
-those tests green as long as the whole stack still does what it did before.
+## What this project already contains
 
-#### Integration tests
-Used for testing of Application specific logic with built container. Tests the application logic with all the components running under
-the hood. **In this case I mocked the database calls, to save some time with database cleanup configuration and fixtures**.
-Normally I would include all calls to internal ecosystem, as long as they are within our controllable stack.
+It is fully prepared project:
+* Symfony 5.4 project with all dependencies already installed
+* Doctrine entity already prepared to be used + repository with two methods required for retrieving and saving (\App\Repository\ResolvedAddressRepository)
+* Already prepared examples how to make geocoding requests to Google Maps and Here maps so you won't need to read documentation how to use those ( \App\Controller\CoordinatesController::gmapsAction and \App\Controller\CoordinatesController::hmapsAction )
+* API endpoint and controller action with DummyGeocoder injected as dependency placeholder.
+* Makefile prepared with some useful daily workflow commands. Please get familiar with it as it will save you some time during development. Feel free to add any useful commands yourself!
 
-#### API tests (Not implemented)
-Similar to Integration tests, but using actual API calls. I've decided not to implement this layer as this is material for
-another story. Configuring this layer in php is really complex and time-consuming if you want to do it right.
+## What is expected from you
+
+Implement main services which does all the coordination / combined logic: checks DB, if no results, make request to google maps, if fails or not found, check here maps, and store result to DB (even if not found) and return result as JSON. Feel free to copy-paste already mentioned code examples to other classes / components where you feel is right place for it to be.
+
+Keep in mind that this code design should support multiple and not fixed number of geocoders, and those geocoders at the same time could be used in isolation somewhere else, so all components should be interchangeable and reusable.
+
+**Also cover at least one component with unit tests.**
+
+## How to start project
+
+### Prerequisites
+* Docker installed with Docker Compose
+* Make installed
+
+These are following steps to setup project:
+
+Create .env.local file with all the env values that you need to override from default .env file:
+```
+//.env.local
+
+###> geocoding keys ###
+GOOGLE_GEOCODING_API_KEY=your_google_maps_geocoding_api_key
+HEREMAPS_GEOCODING_API_KEY=your_here_maps_geocoding_api_key
+
+...
+###< geocoding keys ###
+
+COORDINATES_CACHE_VALIDITY_IN_MINUTES=1
+```
+
+then initialize project with simple make command:
+```
+make init
+```
+
+then go to `http://localhost/coordinates` and it should return
+
+```
+{"lat":55.90742079144914,"lng":21.135541627577837}
+```
+
+JSON. If you want to check different address, then add params to url: http://localhost/coordinates?countryCode=lithuania&city=vilnius&street=gedimino+9&postcode=12345 .
+You can specify which geocoder to use by passing GeocodingServiceProvider enum value into the query string like this:
+http://localhost/coordinates?serviceProvider=GOOGLE_MAPS&countryCode=lithuania&city=vilnius&street=gedimino+9&postcode=12345
+
+To access api docs call http://localhost/api/doc.json
+
+And that's it, good luck!

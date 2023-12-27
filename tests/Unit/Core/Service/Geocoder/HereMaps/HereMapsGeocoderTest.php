@@ -4,21 +4,18 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Core\Service\Geocoder\HereMaps;
 
+use App\Core\Service\Geocoder\Exception\FetchingCoordinatesFailedException;
 use App\Core\Service\Geocoder\GeocoderInterface;
 use App\Core\Service\Geocoder\HereMaps\HereMapsGeocoder;
 use App\Core\ValueObject\Address;
-use App\Core\ValueObject\Coordinates;
 use App\Tests\Doubles\Geocoder\HereMapsResponse;
 use App\Tests\Doubles\Tool\Http\Client\PSRClientException;
 use App\Tests\Doubles\Tool\Http\Client\StreamMother;
 use App\Tests\Unit\UnitTest;
-use App\Tool\Http\Client\HttpClientFactory;
-use App\Tool\Http\Client\PSR\PSRClientFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\LoggerInterface;
 use Throwable;
 
 final class HereMapsGeocoderTest extends UnitTest
@@ -26,8 +23,6 @@ final class HereMapsGeocoderTest extends UnitTest
     private MockObject&ClientInterface $client;
 
     private GeocoderInterface $geocoder;
-
-    private MockObject&LoggerInterface $logger;
 
     /**
      * @throws Throwable
@@ -37,14 +32,8 @@ final class HereMapsGeocoderTest extends UnitTest
         parent::setUp();
 
         $this->client = $this->createMock(ClientInterface::class);
-        $psrClientFactory = $this->createMock(PSRClientFactory::class);
-        $psrClientFactory->method('create')->willReturn($this->client);
-        $httpClientFactory = new HttpClientFactory($psrClientFactory);
-
-        $this->logger = $this->createMock(LoggerInterface::class);
         $this->geocoder = new HereMapsGeocoder(
-            $httpClientFactory,
-            $this->logger,
+            $this->client,
             'here_maps_api_key',
         );
     }
@@ -73,9 +62,8 @@ final class HereMapsGeocoderTest extends UnitTest
 
         $result = $this->geocoder->geocode(new Address('country', 'city', 'street', 'postCode'));
 
-        $this->assertInstanceOf(Coordinates::class, $result);
-        $this->assertSame('10.0001', $result->lat);
-        $this->assertSame('20.0002', $result->lng);
+        $this->assertSame('10.0001', $result->coordinates->lat);
+        $this->assertSame('20.0002', $result->coordinates->lng);
     }
 
     /**
@@ -83,10 +71,7 @@ final class HereMapsGeocoderTest extends UnitTest
      */
     public function testUnsuccessfulResponse(): void
     {
-        $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with('HereMaps Geocoding API request failed');
+        $this->expectException(FetchingCoordinatesFailedException::class);
 
         $clientResponse = $this->createMock(ResponseInterface::class);
         $clientResponse->method('getStatusCode')->willReturn(404);
@@ -96,16 +81,12 @@ final class HereMapsGeocoderTest extends UnitTest
             ->method('sendRequest')
             ->willReturn($clientResponse);
 
-        $result = $this->geocoder->geocode(new Address('country', 'city', 'street', 'postCode'));
-        $this->assertNull($result);
+        $this->geocoder->geocode(new Address('country', 'city', 'street', 'postCode'));
     }
 
     public function testInvalidBodyResponse(): void
     {
-        $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with('HereMaps Geocoding API returned invalid JSON response');
+        $this->expectException(FetchingCoordinatesFailedException::class);
 
         $clientResponse = $this->createMock(ResponseInterface::class);
         $clientResponse->method('getStatusCode')->willReturn(200);
@@ -116,24 +97,19 @@ final class HereMapsGeocoderTest extends UnitTest
             ->method('sendRequest')
             ->willReturn($clientResponse);
 
-        $result = $this->geocoder->geocode(new Address('country', 'city', 'street', 'postCode'));
-        $this->assertNull($result);
+        $this->geocoder->geocode(new Address('country', 'city', 'street', 'postCode'));
     }
 
     public function testPsrClientException(): void
     {
-        $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with('HereMaps Geocoding API response error occurred: Some exception');
+        $this->expectException(FetchingCoordinatesFailedException::class);
 
         $this->client
             ->expects($this->once())
             ->method('sendRequest')
             ->willThrowException(new PSRClientException('Some exception'));
 
-        $result = $this->geocoder->geocode(new Address('country', 'city', 'street', 'postCode'));
-        $this->assertNull($result);
+        $this->geocoder->geocode(new Address('country', 'city', 'street', 'postCode'));
     }
 
     private function expectedUri(): string

@@ -6,6 +6,7 @@ namespace App\Tool\Http\Client;
 
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Uri;
+use GuzzleHttp\Psr7\Utils;
 use Psr\Http\Message\RequestInterface;
 
 final class HttpRequestBuilder
@@ -19,6 +20,8 @@ final class HttpRequestBuilder
      * @var array<string, string>
      */
     private array $queryParams = [];
+
+    private ?string $body = null;
 
     private function __construct(
         private readonly string $method,
@@ -89,6 +92,13 @@ final class HttpRequestBuilder
         return $this;
     }
 
+    public function withBody(string $body): self
+    {
+        $this->body = $body;
+
+        return $this;
+    }
+
     public function build(): RequestInterface
     {
         $request = new Request(
@@ -104,6 +114,10 @@ final class HttpRequestBuilder
 
         foreach ($this->headers as $key => $value) {
             $request = $request->withHeader($key, $value);
+        }
+
+        if ($this->body !== null) {
+            $request = $request->withBody(Utils::streamFor($this->body));
         }
 
         return $request;

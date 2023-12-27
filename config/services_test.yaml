@@ -1,8 +1,13 @@
 services:
-    App\Tool\Http\Client\PSR\GuzzlePSRClientFactory:
+    http_client.guzzle:
+        class: GuzzleHttp\Client
         public: true
 
-    App\Core\Finder\DoctrineCoordinatesFinder:
+    App\Core\Repository\DoctrineResolvedAddressRepository:
         public: true
         arguments:
-            $entityManager: '@doctrine.orm.entity_manager'
+            $registry: '@Doctrine\Common\Persistence\ManagerRegistry'
+
+    http_client.loggable:
+        class: GuzzleHttp\Client
+        public: true

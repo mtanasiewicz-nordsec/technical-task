@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Core\Service;
 
+use App\Core\Entity\ResolvedAddress;
 use App\Core\Enum\GeocodingServiceProvider;
-use App\Core\Finder\CoordinatesFinder;
-use App\Core\Finder\DoctrineCoordinatesFinder;
+use App\Core\Repository\DoctrineResolvedAddressRepository;
+use App\Core\Repository\ResolvedAddressRepository;
 use App\Core\Service\GeocoderService;
 use App\Core\ValueObject\Address;
-use App\Core\ValueObject\Coordinates;
 use App\Tests\Doubles\Geocoder\HereMapsResponse;
 use App\Tests\Integration\IntegrationTest;
-use App\Tool\Http\Client\PSR\GuzzlePSRClientFactory;
-use App\Tool\Http\Client\PSR\PSRClientFactory;
 use PHPUnit\Framework\MockObject\MockObject;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
@@ -24,7 +22,7 @@ final class GeocoderServiceTest extends IntegrationTest
 {
     private MockObject&ClientInterface $client;
 
-    private MockObject&CoordinatesFinder $coordinatesFinder;
+    private MockObject&ResolvedAddressRepository $resolvedAddressRepository;
 
     private GeocoderService $geocoderService;
 
@@ -32,13 +30,11 @@ final class GeocoderServiceTest extends IntegrationTest
     {
         self::bootKernel();
 
-        $this->coordinatesFinder = $this->createMock(CoordinatesFinder::class);
-        self::getContainer()->set(DoctrineCoordinatesFinder::class, $this->coordinatesFinder);
+        $this->resolvedAddressRepository = $this->createMock(ResolvedAddressRepository::class);
+        self::getContainer()->set(DoctrineResolvedAddressRepository::class, $this->resolvedAddressRepository);
 
         $this->client = $this->createMock(ClientInterface::class);
-        $psrClientFactory = $this->createMock(PSRClientFactory::class);
-        $psrClientFactory->method('create')->willReturn($this->client);
-        self::getContainer()->set(GuzzlePSRClientFactory::class, $psrClientFactory);
+        self::getContainer()->set('http_client.loggable', $this->client);
 
         $this->geocoderService = self::getContainer()->get(GeocoderService::class);
     }
@@ -48,7 +44,7 @@ final class GeocoderServiceTest extends IntegrationTest
      */
     public function testItTriesToResolveAllServices(): void
     {
-        $this->coordinatesFinder->method('get')->willReturn(null);
+        $this->resolvedAddressRepository->method('getFirstByHashAndProviders')->willReturn(null);
         $unsuccessfulResponse = $this->createMock(ResponseInterface::class);
         $unsuccessfulResponse->method('getStatusCode')->willReturn(404);
         $this->client
@@ -61,7 +57,10 @@ final class GeocoderServiceTest extends IntegrationTest
                 )
             );
 
-        $result = $this->geocoderService->geocode(new Address('PL', 'city', 'street', 'postCode'));
+        $result = $this->geocoderService->geocode(
+            new Address('PL', 'city', 'street', 'postCode'),
+            GeocodingServiceProvider::cases(),
+        );
         $this->assertNull($result);
     }
 
@@ -70,7 +69,7 @@ final class GeocoderServiceTest extends IntegrationTest
      */
     public function testItResolves(): void
     {
-        $this->coordinatesFinder->method('get')->willReturn(null);
+        $this->resolvedAddressRepository->method('getFirstByHashAndProviders')->willReturn(null);
         $notFoundResponse = $this->createMock(ResponseInterface::class);
         $notFoundResponse->method('getStatusCode')->willReturn(404);
         $hereMapsResponse = $this->createMock(ResponseInterface::class);
@@ -91,7 +90,10 @@ final class GeocoderServiceTest extends IntegrationTest
                 }
             );
 
-        $result = $this->geocoderService->geocode(new Address('PL', 'city', 'street', 'postCode'));
+        $result = $this->geocoderService->geocode(
+            new Address('PL', 'city', 'street', 'postCode'),
+            GeocodingServiceProvider::cases(),
+        );
         $this->assertSame('10.0001', $result->lat);
         $this->assertSame('20.0002', $result->lng);
     }
@@ -101,7 +103,7 @@ final class GeocoderServiceTest extends IntegrationTest
      */
     public function testItResolvesByExactServiceProvider(): void
     {
-        $this->coordinatesFinder->method('get')->willReturn(null);
+        $this->resolvedAddressRepository->method('getFirstByHashAndProviders')->willReturn(null);
         $hereMapsResponse = $this->createMock(ResponseInterface::class);
         $hereMapsResponse->method('getStatusCode')->willReturn(200);
         $hereMapsResponse
@@ -120,7 +122,7 @@ final class GeocoderServiceTest extends IntegrationTest
                 'street',
                 'postCode',
             ),
-            GeocodingServiceProvider::HERE_MAPS,
+            [GeocodingServiceProvider::HERE_MAPS],
         );
         $this->assertSame('10.0001', $result->lat);
         $this->assertSame('20.0002', $result->lng);
@@ -128,10 +130,14 @@ final class GeocoderServiceTest extends IntegrationTest
 
     public function testItDoesNotCallApiWhenCacheIsPresent(): void
     {
-        $this->coordinatesFinder
-            ->method('get')
+        $resolvedAddressMock = $this->createMock(ResolvedAddress::class);
+        $resolvedAddressMock->method('getLat')->willReturn('10.0001');
+        $resolvedAddressMock->method('getLng')->willReturn('20.0002');
+
+        $this->resolvedAddressRepository
+            ->method('getFirstByHashAndProviders')
             ->willReturn(
-                new Coordinates('10.0001', '20.0002'),
+                $resolvedAddressMock,
             );
 
         $this->client
@@ -157,7 +163,7 @@ final class GeocoderServiceTest extends IntegrationTest
                 'street',
                 'postCode',
             ),
-            GeocodingServiceProvider::GOOGLE_MAPS,
+            [GeocodingServiceProvider::GOOGLE_MAPS],
         );
 
         $this->assertSame('10.0001', $result->lat);

@@ -12,8 +12,8 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: DoctrineResolvedAddressRepository::class)]
 #[ORM\Table(name: 'resolved_addresses')]
-#[ORM\Index(columns: ['country_code', 'city', 'street', 'postcode'], name: 'resolved_addresses_search_idx')]
 #[ORM\Index(columns: ['created_at'], name: 'resolved_addresses_created_at_idx')]
+#[ORM\Index(columns: ['hash'], name: 'resolved_addresses_hash_idx')]
 class ResolvedAddress
 {
     #[ORM\Id]
@@ -21,8 +21,8 @@ class ResolvedAddress
     #[ORM\Column(type: 'bigint')]
     private int $id;
 
-    #[ORM\Column(type: 'string', length: 60, enumType: GeocodingServiceProvider::class)]
-    private GeocodingServiceProvider $serviceProvider;
+    #[ORM\Column(type: 'string', length: 60, nullable: true, enumType: GeocodingServiceProvider::class)]
+    private ?GeocodingServiceProvider $serviceProvider;
 
     #[ORM\Column(type: 'string', length: 3)]
     private string $countryCode;
@@ -36,51 +36,108 @@ class ResolvedAddress
     #[ORM\Column(type: 'string', length: 100)]
     private string $postcode;
 
-    #[ORM\Column(type: 'decimal', precision: 11, scale: 8)]
-    private string $lat;
+    #[ORM\Column(type: 'string')]
+    private string $hash;
 
-    #[ORM\Column(type: 'decimal', precision: 11, scale: 8)]
-    private string $lng;
+    #[ORM\Column(type: 'decimal', precision: 11, scale: 8, nullable: true)]
+    private ?string $lat;
+
+    #[ORM\Column(type: 'decimal', precision: 11, scale: 8, nullable: true)]
+    private ?string $lng;
 
     #[ORM\Column(type: 'datetime')]
     private DateTimeInterface $createdAt;
 
     private function __construct(
-        GeocodingServiceProvider $serviceProvider,
         string $countryCode,
         string $city,
         string $street,
         string $postcode,
-        string $lat,
-        string $lng,
+        string $hash,
+        ?string $lat = null,
+        ?string $lng = null,
+        ?GeocodingServiceProvider $serviceProvider = null,
     ) {
-        $this->serviceProvider = $serviceProvider;
         $this->countryCode = $countryCode;
         $this->city = $city;
         $this->street = $street;
         $this->postcode = $postcode;
+        $this->hash = $hash;
         $this->lat = $lat;
         $this->lng = $lng;
+        $this->serviceProvider = $serviceProvider;
         $this->createdAt = new DateTime();
     }
 
     public static function create(
-        GeocodingServiceProvider $serviceProvider,
         string $countryCode,
         string $city,
         string $street,
         string $postcode,
-        string $lat,
-        string $lng,
+        string $hash,
+        ?string $lat = null,
+        ?string $lng = null,
+        ?GeocodingServiceProvider $serviceProvider = null,
     ): self {
         return new self(
-            $serviceProvider,
             $countryCode,
             $city,
             $street,
             $postcode,
+            $hash,
             $lat,
             $lng,
+            $serviceProvider,
         );
+    }
+
+    public function getId(): int
+    {
+        return $this->id;
+    }
+
+    public function getServiceProvider(): ?GeocodingServiceProvider
+    {
+        return $this->serviceProvider;
+    }
+
+    public function getCountryCode(): string
+    {
+        return $this->countryCode;
+    }
+
+    public function getCity(): string
+    {
+        return $this->city;
+    }
+
+    public function getStreet(): string
+    {
+        return $this->street;
+    }
+
+    public function getPostcode(): string
+    {
+        return $this->postcode;
+    }
+
+    public function getHash(): string
+    {
+        return $this->hash;
+    }
+
+    public function getLat(): ?string
+    {
+        return $this->lat;
+    }
+
+    public function getLng(): ?string
+    {
+        return $this->lng;
+    }
+
+    public function getCreatedAt(): DateTimeInterface
+    {
+        return $this->createdAt;
     }
 }

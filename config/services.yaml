@@ -17,20 +17,55 @@ services:
         resource: '../src/Core/Controller/'
         tags: ['controller.service_arguments']
 
+    tool.query_param_converter:
+        class: App\Tool\Symfony\Controller\Request\QueryParamConverter
+        tags:
+            - { name: 'request.param_converter', converter: 'query_param_converter' }
+
+    App\Tool\Symfony\Event\LoggableRequestEventSubscriber:
+        arguments:
+            $controllerResolver: '@controller_resolver'
+
+    guzzle.stack:
+        public: false
+        class: GuzzleHttp\HandlerStack
+        factory: [ GuzzleHttp\HandlerStack, create ]
+        calls:
+            - [ push, [ '@guzzle.logger' ] ]
+
+    guzzle.logger:
+        public: false
+        # For whatever reason, symfony expects something here even though we use factory.
+        class: callback
+        arguments: [ '@logger', '@guzzle.message_formatter' ]
+        factory: [ GuzzleHttp\Middleware, log ]
+
+    guzzle.message_formatter:
+        class: GuzzleHttp\MessageFormatter
+
+    http_client.loggable:
+        class: GuzzleHttp\Client
+        arguments:
+            -
+                handler: '@guzzle.stack'
+
     App\Core\Service\Geocoder\GeocoderRegistry:
         arguments:
             $geocoders: !tagged 'app.geocoder'
 
     App\Core\Service\Geocoder\Google\GoogleMapsGeocoder:
         arguments:
+            $httpClient: '@http_client.loggable'
             $apiKey: '%env(GOOGLE_GEOCODING_API_KEY)%'
         tags: ['app.geocoder']
 
     App\Core\Service\Geocoder\HereMaps\HereMapsGeocoder:
         arguments:
+            $httpClient: '@http_client.loggable'
             $apiKey: '%env(HEREMAPS_GEOCODING_API_KEY)%'
         tags: ['app.geocoder']
 
     App\Core\CLI\InvalidateCoordinatesCacheCommand:
         arguments:
             $cacheMinutes: '%env(COORDINATES_CACHE_VALIDITY_IN_MINUTES)%'
+

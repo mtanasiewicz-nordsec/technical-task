@@ -6,24 +6,36 @@ namespace App\Core\Factory;
 
 use App\Core\Entity\ResolvedAddress;
 use App\Core\Enum\GeocodingServiceProvider;
+use App\Core\Service\AddressHashGenerator;
 use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
 
 final readonly class ResolvedAddressFactory
 {
+    public function __construct(
+        private AddressHashGenerator $addressHashGenerator,
+    ) {
+    }
+
     public function createFromCoordinates(
         Address $address,
-        Coordinates $coordinates,
         GeocodingServiceProvider $serviceProvider,
+        ?Coordinates $coordinates = null,
     ): ResolvedAddress {
         return ResolvedAddress::create(
-            $serviceProvider,
             $address->country,
             $address->city,
             $address->street,
             $address->postcode,
-            $coordinates->lat,
-            $coordinates->lng,
+            $this->addressHashGenerator->generate(
+                $address->country,
+                $address->city,
+                $address->street,
+                $address->postcode,
+            ),
+            $coordinates?->lat,
+            $coordinates?->lng,
+            $serviceProvider,
         );
     }
 }

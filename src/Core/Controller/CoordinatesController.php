@@ -4,25 +4,25 @@ declare(strict_types=1);
 
 namespace App\Core\Controller;
 
-use App\Core\DTO\CoordinatesResponse;
+use App\Core\DTO\GeocodeRequest;
+use App\Core\DTO\GeocodeResponse;
 use App\Core\Enum\GeocodingServiceProvider;
-use App\Core\Factory\CoordinatesResponseFactory;
 use App\Core\Service\GeocoderService;
-use App\Core\Service\RequestToAddressTransformer;
+use App\Core\ValueObject\Address;
+use App\Tool\Symfony\Controller\LoggableController;
+use App\Tool\Symfony\Controller\Response\BadRequestResponse;
+use App\Tool\Symfony\Controller\Response\NotFoundResponse;
+use App\Tool\Symfony\Controller\RestController;
 use Nelmio\ApiDocBundle\Annotation\Model;
 use OpenApi\Attributes as OA;
-use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
-final class CoordinatesController extends AbstractController
+final class CoordinatesController extends RestController implements LoggableController
 {
     public function __construct(
-        private readonly RequestToAddressTransformer $requestToAddressTransformer,
         private readonly GeocoderService $geocoder,
-        private readonly CoordinatesResponseFactory $coordinatesResponseFactory,
     ) {
     }
 
@@ -34,28 +34,52 @@ final class CoordinatesController extends AbstractController
     #[OA\QueryParameter('serviceProvider', 'serviceProvider', 'Service provider to use', required: false, allowEmptyValue: false)]
     #[OA\Response(
         response: 200,
-        description: 'Returns geocoded location of provided address',
+        description: 'Returns geocoded location of provided address.',
         content: new OA\JsonContent(
-            ref: new Model(type: CoordinatesResponse::class),
+            ref: new Model(type: GeocodeResponse::class),
             type: 'object'
         )
     )]
+    #[OA\Response(
+        response: 400,
+        description: 'Validation error response.',
+        content: new OA\JsonContent(
+            ref: new Model(type: BadRequestResponse::class),
+            type: 'object'
+        )
+    )]
+    #[OA\Response(
+        response: 404,
+        description: 'Returns information that we could not find geocoding information for this address.',
+        content: new OA\JsonContent(
+            ref: new Model(type: NotFoundResponse::class),
+            type: 'object'
+        )
+    )]
+
     #[Route(path: '/coordinates', name: 'geocode')]
-    public function geocodeAction(Request $request): Response
+    #[ParamConverter('queryParameters', class: GeocodeRequest::class, converter: 'query_param_converter')]
+    public function geocodeAction(GeocodeRequest $queryParameters): Response
     {
-        $serviceProvider = $request->query->get('serviceProvider');
-        if ($serviceProvider !== null) {
-            $serviceProvider = GeocodingServiceProvider::tryFrom((string) $serviceProvider);
-        }
+        $coordinates = $this->geocoder->geocode(
+            new Address(
+                $queryParameters->countryCode,
+                $queryParameters->city,
+                $queryParameters->street,
+                $queryParameters->postcode,
+            ),
+            GeocodingServiceProvider::cases(),
+        );
 
-        $address = $this->requestToAddressTransformer->transform($request);
-        $coordinates = $this->geocoder->geocode($address, $serviceProvider);
         if (null === $coordinates) {
-            return new JsonResponse([]);
+            return $this->notFound('We were unable to find any coordinates matching your address.');
         }
 
-        return new JsonResponse(
-            $this->coordinatesResponseFactory->createFromCoordinates($coordinates),
+        return $this->ok(
+            new GeocodeResponse(
+                $coordinates->lat,
+                $coordinates->lng,
+            ),
         );
     }
 }

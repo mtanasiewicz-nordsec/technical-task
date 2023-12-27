@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace App\Core\Service\Geocoder\HereMaps;
 
 use App\Core\Enum\GeocodingServiceProvider;
+use App\Core\Service\Geocoder\Exception\FetchingCoordinatesFailedException;
 use App\Core\Service\Geocoder\GeocoderInterface;
+use App\Core\Service\Geocoder\ProviderCoordinates;
 use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
-use App\Tool\Http\Client\HttpClientFactory;
 use App\Tool\Http\Client\HttpRequestBuilder;
 use JsonException;
 use Psr\Http\Client\ClientExceptionInterface;
-use Psr\Log\LoggerInterface;
+use Psr\Http\Client\ClientInterface;
 
 final readonly class HereMapsGeocoder implements GeocoderInterface
 {
     public function __construct(
-        private HttpClientFactory $httpClientFactory,
-        private LoggerInterface $logger,
+        private ClientInterface $httpClient,
         private string $apiKey,
     ) {
     }
@@ -28,9 +28,8 @@ final readonly class HereMapsGeocoder implements GeocoderInterface
         return $serviceProvider === GeocodingServiceProvider::HERE_MAPS;
     }
 
-    public function geocode(Address $address): ?Coordinates
+    public function geocode(Address $address): ProviderCoordinates
     {
-        $client = $this->httpClientFactory->create();
         $request = HttpRequestBuilder::GET('https://geocode.search.hereapi.com/v1/geocode')
             ->withQueryParams([
                 'qq' => implode(
@@ -47,60 +46,49 @@ final readonly class HereMapsGeocoder implements GeocoderInterface
             ->build();
 
         try {
-            $response = $client->sendRequest($request);
-            if (!$response->isSuccessful()) {
-                $this->logger->error(
-                    'HereMaps Geocoding API request failed',
-                    [
-                        'response_content' => $response->getBody()->getContents(),
-                    ],
-                );
+            $response = $this->httpClient->sendRequest($request);
+        } catch (ClientExceptionInterface $e) {
+            throw new FetchingCoordinatesFailedException(
+                'HttpClient thrown exception when sending HereMaps geocoding request',
+                previous: $e,
+            );
+        }
 
-                return null;
-            }
+        if ($response->getStatusCode() !== 200) {
+            throw new FetchingCoordinatesFailedException(
+                "HereMaps geocoding request failed with status code {$response->getStatusCode()}."
+            );
+        }
 
+        try {
             $data = json_decode(
                 $response->getBody()->getContents(),
                 true,
                 512,
                 JSON_THROW_ON_ERROR,
             );
+        } catch (JsonException $e) {
+            throw new FetchingCoordinatesFailedException(
+                'Decoding HereMaps response failed.',
+                previous: $e,
+            );
+        }
 
-            if (count($data['items']) === 0) {
-                return null;
-            }
+        if (count($data['items']) === 0) {
+            return new ProviderCoordinates(GeocodingServiceProvider::HERE_MAPS);
+        }
 
-            $firstItem = $data['items'][0];
+        $firstItem = $data['items'][0];
+        if ($firstItem['resultType'] !== 'houseNumber') {
+            return new ProviderCoordinates(GeocodingServiceProvider::HERE_MAPS);
+        }
 
-            if ($firstItem['resultType'] !== 'houseNumber') {
-                return null;
-            }
-
-            return new Coordinates(
+        return new ProviderCoordinates(
+            GeocodingServiceProvider::HERE_MAPS,
+            new Coordinates(
                 (string) $firstItem['position']['lat'],
                 (string) $firstItem['position']['lng'],
-            );
-        } catch (JsonException $e) {
-            if(isset($response)) {
-                $this->logger->error(
-                    'HereMaps Geocoding API returned invalid JSON response',
-                    [
-                        'response_content' => $response->getBody()->getContents(),
-                        'exception' => $e,
-                    ],
-                );
-            }
-
-            return null;
-        } catch (ClientExceptionInterface $e) {
-            $this->logger->error(
-                'HereMaps Geocoding API response error occurred: ' . $e->getMessage(),
-                [
-                    'exception' => $e,
-                ]
-            );
-
-            return null;
-        }
+            )
+        );
     }
 }
