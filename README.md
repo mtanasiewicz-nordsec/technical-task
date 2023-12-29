@@ -8,16 +8,17 @@ Main functionality of this project is this: have a /coordinates endpoint which a
 
 To make things a bit more challenging, API should support:
 * more than one external geocoding provider (Google maps and Here maps) which would be called sequentially if first provider does not find that address
-* implement layer responsible for caching results to DB (MySQL) 
+* implement layer responsible for caching results to DB (MySQL)
 * I should be able to use either whole stack (cache+here maps+google maps) or individual geocoder (google maps or here maps) or cached geocoder (cache+google maps for example)
 
-## What this project already contains 
+## What this project already contains
 
-It is fully prepared project: 
-* Symfony 5 project with all dependencies already installed
+It is fully prepared project:
+* Symfony 5.4 project with all dependencies already installed
 * Doctrine entity already prepared to be used + repository with two methods required for retrieving and saving (\App\Repository\ResolvedAddressRepository)
 * Already prepared examples how to make geocoding requests to Google Maps and Here maps so you won't need to read documentation how to use those ( \App\Controller\CoordinatesController::gmapsAction and \App\Controller\CoordinatesController::hmapsAction )
 * API endpoint and controller action with DummyGeocoder injected as dependency placeholder.
+* Makefile prepared with some useful daily workflow commands. Please get familiar with it as it will save you some time during development. Feel free to add any useful commands yourself!
 
 ## What is expected from you
 
@@ -29,34 +30,41 @@ Keep in mind that this code design should support multiple and not fixed number 
 
 ## How to start project
 
+### Prerequisites
+* Docker installed with Docker Compose
+* Make installed
+
 These are following steps to setup project:
 
+Create .env.local file with all the env values that you need to override from default .env file:
 ```
-cp .env.dist .env
+//.env.local
+
+###> geocoding keys ###
+GOOGLE_GEOCODING_API_KEY=your_google_maps_geocoding_api_key
+HEREMAPS_GEOCODING_API_KEY=your_here_maps_geocoding_api_key
+
+...
+###< geocoding keys ###
+
+COORDINATES_CACHE_VALIDITY_IN_MINUTES=1
 ```
 
-then inside of .env file, replace set correct values for GOOGLE_GEOCODING_API_KEY and HEREMAPS_GEOCODING_API_KEY variables, and those keys will be sent separately in the email. 
-
-then prepare docker environment:
+then initialize project with simple make command:
 ```
-docker-compose build
-docker-compose up -d
-docker-compose run php bash
+make init
 ```
 
-final project steps inside of docker container:
-```
-composer install
-bin/console doctrine:database:create
-bin/console doctrine:schema:create
-```
-
-then go to `http://localhost/coordinates` and it should return 
+then go to `http://localhost/coordinates` and it should return
 
 ```
 {"lat":55.90742079144914,"lng":21.135541627577837}
 ```
 
-JSON. If you want to check different address, then add params to url: http://localhost/coordinates?countryCode=lithuania&city=vilnius&street=gedimino+9&postcode=12345 . 
+JSON. If you want to check different address, then add params to url: http://localhost/coordinates?countryCode=lithuania&city=vilnius&street=gedimino+9&postcode=12345 .
+You can specify which geocoder to use by passing GeocodingServiceProvider enum value into the query string like this:
+http://localhost/coordinates?serviceProvider=GOOGLE_MAPS&countryCode=lithuania&city=vilnius&street=gedimino+9&postcode=12345
+
+To access api docs call http://localhost/api/doc.json
 
 And that's it, good luck!

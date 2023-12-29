@@ -1,0 +1,13 @@
+services:
+    http_client.guzzle:
+        class: GuzzleHttp\Client
+        public: true
+
+    App\Core\Repository\DoctrineResolvedAddressRepository:
+        public: true
+        arguments:
+            $registry: '@Doctrine\Common\Persistence\ManagerRegistry'
+
+    http_client.loggable:
+        class: GuzzleHttp\Client
+        public: true

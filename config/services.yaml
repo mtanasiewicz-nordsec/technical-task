@@ -1,31 +1,71 @@
-# This file is the entry point to configure your own services.
-# Files in the packages/ subdirectory configure your dependencies.
-
-# Put parameters here that don't need to change on each machine where the app is deployed
-# https://symfony.com/doc/current/best_practices/configuration.html#application-related-configuration
 parameters:
 
 services:
-    # default configuration for services in *this* file
     _defaults:
-        autowire: true      # Automatically injects dependencies in your services.
-        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        autowire: true
+        autoconfigure: true
 
-    # makes classes in src/ available to be used as services
-    # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
         exclude:
-            - '../src/DependencyInjection/'
-            - '../src/Entity/'
+            - '../src/Core/DependencyInjection/'
+            - '../src/Core/Entity/'
             - '../src/Kernel.php'
             - '../src/Tests/'
 
-    # controllers are imported separately to make sure services can be injected
-    # as action arguments even if you don't extend any base controller class
-    App\Controller\:
-        resource: '../src/Controller/'
+    App\Core\Controller\:
+        resource: '../src/Core/Controller/'
         tags: ['controller.service_arguments']
 
-    # add more service definitions when explicit configuration is needed
-    # please note that last definitions always *replace* previous ones
+    tool.query_param_converter:
+        class: App\Tool\Symfony\Controller\Request\QueryParamConverter
+        tags:
+            - { name: 'request.param_converter', converter: 'query_param_converter' }
+
+    App\Tool\Symfony\Event\LoggableRequestEventSubscriber:
+        arguments:
+            $controllerResolver: '@controller_resolver'
+
+    guzzle.stack:
+        public: false
+        class: GuzzleHttp\HandlerStack
+        factory: [ GuzzleHttp\HandlerStack, create ]
+        calls:
+            - [ push, [ '@guzzle.logger' ] ]
+
+    guzzle.logger:
+        public: false
+        # For whatever reason, symfony expects something here even though we use factory.
+        class: callback
+        arguments: [ '@logger', '@guzzle.message_formatter' ]
+        factory: [ GuzzleHttp\Middleware, log ]
+
+    guzzle.message_formatter:
+        class: GuzzleHttp\MessageFormatter
+
+    http_client.loggable:
+        class: GuzzleHttp\Client
+        arguments:
+            -
+                handler: '@guzzle.stack'
+
+    App\Core\Service\Geocoder\GeocoderRegistry:
+        arguments:
+            $geocoders: !tagged 'app.geocoder'
+
+    App\Core\Service\Geocoder\Google\GoogleMapsGeocoder:
+        arguments:
+            $httpClient: '@http_client.loggable'
+            $apiKey: '%env(GOOGLE_GEOCODING_API_KEY)%'
+        tags: ['app.geocoder']
+
+    App\Core\Service\Geocoder\HereMaps\HereMapsGeocoder:
+        arguments:
+            $httpClient: '@http_client.loggable'
+            $apiKey: '%env(HEREMAPS_GEOCODING_API_KEY)%'
+        tags: ['app.geocoder']
+
+    App\Core\CLI\InvalidateCoordinatesCacheCommand:
+        arguments:
+            $cacheMinutes: '%env(COORDINATES_CACHE_VALIDITY_IN_MINUTES)%'
+
