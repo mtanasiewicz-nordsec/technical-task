@@ -14,7 +14,11 @@ final class AddressHashGenerator
     ): string {
         return md5(
             mb_strtolower(
-                "$country $city $street $postcode",
+                str_replace(
+                    ' ',
+                    '',
+                    "$country$city$street$postcode"
+                ),
             ),
         );
     }

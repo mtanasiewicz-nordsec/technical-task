@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Core\Entity;
 
-use App\Core\Enum\GeocodingServiceProvider;
 use App\Core\Repository\DoctrineResolvedAddressRepository;
 use DateTime;
 use DateTimeInterface;
@@ -20,9 +19,6 @@ class ResolvedAddress
     #[ORM\GeneratedValue]
     #[ORM\Column(type: 'bigint')]
     private int $id;
-
-    #[ORM\Column(type: 'string', length: 60, nullable: true, enumType: GeocodingServiceProvider::class)]
-    private ?GeocodingServiceProvider $serviceProvider;
 
     #[ORM\Column(type: 'string', length: 3)]
     private string $countryCode;
@@ -56,7 +52,6 @@ class ResolvedAddress
         string $hash,
         ?string $lat = null,
         ?string $lng = null,
-        ?GeocodingServiceProvider $serviceProvider = null,
     ) {
         $this->countryCode = $countryCode;
         $this->city = $city;
@@ -65,7 +60,6 @@ class ResolvedAddress
         $this->hash = $hash;
         $this->lat = $lat;
         $this->lng = $lng;
-        $this->serviceProvider = $serviceProvider;
         $this->createdAt = new DateTime();
     }
 
@@ -77,7 +71,6 @@ class ResolvedAddress
         string $hash,
         ?string $lat = null,
         ?string $lng = null,
-        ?GeocodingServiceProvider $serviceProvider = null,
     ): self {
         return new self(
             $countryCode,
@@ -87,18 +80,12 @@ class ResolvedAddress
             $hash,
             $lat,
             $lng,
-            $serviceProvider,
         );
     }
 
     public function getId(): int
     {
         return $this->id;
-    }
-
-    public function getServiceProvider(): ?GeocodingServiceProvider
-    {
-        return $this->serviceProvider;
     }
 
     public function getCountryCode(): string

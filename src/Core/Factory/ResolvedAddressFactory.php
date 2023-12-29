@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Core\Factory;
 
 use App\Core\Entity\ResolvedAddress;
-use App\Core\Enum\GeocodingServiceProvider;
 use App\Core\Service\AddressHashGenerator;
 use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
@@ -19,7 +18,6 @@ final readonly class ResolvedAddressFactory
 
     public function createFromCoordinates(
         Address $address,
-        GeocodingServiceProvider $serviceProvider,
         ?Coordinates $coordinates = null,
     ): ResolvedAddress {
         return ResolvedAddress::create(
@@ -35,7 +33,6 @@ final readonly class ResolvedAddressFactory
             ),
             $coordinates?->lat,
             $coordinates?->lng,
-            $serviceProvider,
         );
     }
 }

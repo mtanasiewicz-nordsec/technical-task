@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Tool\Serializer;
+namespace App\Tool\Serializer\JSON;
 
-interface JsonObjectSerializer
+use App\Tool\Serializer\SerializerFailedException;
+
+interface Serializer
 {
     /**
      * @param object|mixed[] $data - Simple DTO serializable to JSON or associative array of data.

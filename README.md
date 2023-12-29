@@ -55,16 +55,14 @@ then initialize project with simple make command:
 make init
 ```
 
-then go to `http://localhost/coordinates` and it should return
+then go to [http://localhost/api/coordinates?countryCode=lt&city=vilnius&street=gedimino+9&postcode=12345](http://localhost/api/coordinates?countryCode=lt&city=vilnius&street=gedimino+9&postcode=12345) and it should return
 
 ```
-{"lat":55.90742079144914,"lng":21.135541627577837}
+{"lat":"54.68699000","lng":"25.28155000"}
 ```
 
-JSON. If you want to check different address, then add params to url: http://localhost/coordinates?countryCode=lithuania&city=vilnius&street=gedimino+9&postcode=12345 .
-You can specify which geocoder to use by passing GeocodingServiceProvider enum value into the query string like this:
-http://localhost/coordinates?serviceProvider=GOOGLE_MAPS&countryCode=lithuania&city=vilnius&street=gedimino+9&postcode=12345
+JSON. If you want to check different address, just update the params in the url.
 
-To access api docs call http://localhost/api/doc.json
+To access api docs go to [http://localhost/api/doc](http://localhost/api/doc)
 
 And that's it, good luck!

@@ -49,21 +49,33 @@ services:
             -
                 handler: '@guzzle.stack'
 
-    App\Core\Service\Geocoder\GeocoderRegistry:
-        arguments:
-            $geocoders: !tagged 'app.geocoder'
-
     App\Core\Service\Geocoder\Google\GoogleMapsGeocoder:
         arguments:
+            $logger: '@logger'
             $httpClient: '@http_client.loggable'
             $apiKey: '%env(GOOGLE_GEOCODING_API_KEY)%'
-        tags: ['app.geocoder']
 
     App\Core\Service\Geocoder\HereMaps\HereMapsGeocoder:
         arguments:
+            $logger: '@logger'
             $httpClient: '@http_client.loggable'
             $apiKey: '%env(HEREMAPS_GEOCODING_API_KEY)%'
-        tags: ['app.geocoder']
+
+    geocoder.full_stack:
+        class: App\Core\Service\Geocoder\Stack\GeocoderStack
+        arguments:
+            $geocoders:
+                - '@App\Core\Service\Geocoder\Google\GoogleMapsGeocoder'
+                - '@App\Core\Service\Geocoder\HereMaps\HereMapsGeocoder'
+
+    geocoder.full_stack.cached:
+        stack:
+            - '@App\Core\Service\Geocoder\Cache\CachedGeocoder'
+            - '@geocoder.full_stack'
+
+    App\Core\Service\GeocoderService:
+        arguments:
+            $geocoder: '@geocoder.full_stack.cached'
 
     App\Core\CLI\InvalidateCoordinatesCacheCommand:
         arguments:
