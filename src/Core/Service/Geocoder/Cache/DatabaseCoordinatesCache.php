@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Core\Service\Geocoder\Cache;
 
-use App\Core\Enum\GeocodingServiceProvider;
 use App\Core\Factory\ResolvedAddressFactory;
 use App\Core\Repository\ResolvedAddressRepository;
 use App\Core\Service\AddressHashGenerator;
@@ -21,37 +20,34 @@ final readonly class DatabaseCoordinatesCache implements CoordinatesCache
     ) {
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function get(Address $address, array $serviceProviders = []): ?Coordinates
+    public function get(Address $address): ?Coordinates
     {
-        $result = $this->resolvedAddressRepository->getFirstByHashAndProviders(
+        $result = $this->resolvedAddressRepository->getFirstByHash(
             $this->addressHashGenerator->generate(
                 $address->country,
                 $address->city,
                 $address->street,
                 $address->postcode,
             ),
-            $serviceProviders,
         );
 
         if ($result === null || $result->getLat() === null || $result->getLng() === null) {
             return null;
         }
 
-        return new Coordinates($result->getLat(), $result->getLng());
+        return new Coordinates(
+            $result->getLat(),
+            $result->getLng(),
+        );
     }
 
     public function store(
         Address $address,
-        GeocodingServiceProvider $serviceProvider,
         ?Coordinates $coordinates = null,
     ): void {
         $this->resolvedAddressRepository->save(
             $this->resolvedAddressFactory->createFromCoordinates(
                 $address,
-                $serviceProvider,
                 $coordinates,
             )
         );

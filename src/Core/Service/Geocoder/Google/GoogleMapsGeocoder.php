@@ -4,31 +4,25 @@ declare(strict_types=1);
 
 namespace App\Core\Service\Geocoder\Google;
 
-use App\Core\Enum\GeocodingServiceProvider;
-use App\Core\Service\Geocoder\Exception\FetchingCoordinatesFailedException;
 use App\Core\Service\Geocoder\GeocoderInterface;
-use App\Core\Service\Geocoder\ProviderCoordinates;
 use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
 use App\Tool\Http\Client\HttpRequestBuilder;
 use JsonException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
+use Psr\Log\LoggerInterface;
 
 final readonly class GoogleMapsGeocoder implements GeocoderInterface
 {
     public function __construct(
         private ClientInterface $httpClient,
+        private LoggerInterface $logger,
         private string $apiKey,
     ) {
     }
 
-    public function supports(GeocodingServiceProvider $serviceProvider): bool
-    {
-        return $serviceProvider === GeocodingServiceProvider::GOOGLE_MAPS;
-    }
-
-    public function geocode(Address $address): ProviderCoordinates
+    public function geocode(Address $address): ?Coordinates
     {
         $request = HttpRequestBuilder::GET('https://maps.googleapis.com/maps/api/geocode/json')
             ->withQueryParams([
@@ -36,9 +30,9 @@ final readonly class GoogleMapsGeocoder implements GeocoderInterface
                 'components' => implode(
                     '|',
                     [
-                        "country:{$address->country}",
-                        "locality:{$address->city}",
-                        "postal_code:{$address->postcode}",
+                        "country:$address->country",
+                        "locality:$address->city",
+                        "postal_code:$address->postcode",
                     ]
                 ),
                 'key' => $this->apiKey,
@@ -48,16 +42,22 @@ final readonly class GoogleMapsGeocoder implements GeocoderInterface
         try {
             $response = $this->httpClient->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
-            throw new FetchingCoordinatesFailedException(
-                'HttpClient thrown exception when sending GoogleMaps geocoding request',
-                previous: $e,
+            $this->logger->error(
+                'GoogleMaps geocoding failed with exception',
+                [
+                    'exception' => $e,
+                ]
             );
+
+            return null;
         }
 
         if ($response->getStatusCode() !== 200) {
-            throw new FetchingCoordinatesFailedException(
+            $this->logger->error(
                 "GoogleMaps geocoding request failed with status code {$response->getStatusCode()}."
             );
+
+            return null;
         }
 
         try {
@@ -68,27 +68,42 @@ final readonly class GoogleMapsGeocoder implements GeocoderInterface
                 JSON_THROW_ON_ERROR,
             );
         } catch (JsonException $e) {
-            throw new FetchingCoordinatesFailedException(
+            $this->logger->error(
                 'Decoding GoogleMaps response failed.',
-                previous: $e,
+                [
+                    'exception' => $e,
+                ]
             );
+
+            return null;
         }
 
         if (count($data['results']) === 0) {
-            return new ProviderCoordinates(GeocodingServiceProvider::GOOGLE_MAPS);
+            $this->logger->info(
+                'GoogleMaps geocoder found no coordinates',
+                [
+                    'address' => $address->toString(),
+                ]
+            );
+
+            return null;
         }
 
         $firstResult = $data['results'][0];
         if ($firstResult['geometry']['location_type'] !== 'ROOFTOP') {
-            return new ProviderCoordinates(GeocodingServiceProvider::GOOGLE_MAPS);
+            $this->logger->info(
+                'GoogleMaps geocoder found no coordinates',
+                [
+                    'address' => $address->toString(),
+                ]
+            );
+
+            return null;
         }
 
-        return new ProviderCoordinates(
-            GeocodingServiceProvider::GOOGLE_MAPS,
-            new Coordinates(
-                (string) $firstResult['geometry']['location']['lat'],
-                (string) $firstResult['geometry']['location']['lng'],
-            ),
+        return new Coordinates(
+            (string) $firstResult['geometry']['location']['lat'],
+            (string) $firstResult['geometry']['location']['lng'],
         );
     }
 }

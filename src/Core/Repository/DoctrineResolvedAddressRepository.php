@@ -37,25 +37,15 @@ final class DoctrineResolvedAddressRepository extends ServiceEntityRepository im
             ->execute();
     }
 
-    /**
-     * @inheritDoc
-     */
-    public function getFirstByHashAndProviders(
-        string $hash,
-        array $serviceProviders
-    ): ?ResolvedAddress {
-        $qb = $this->createQueryBuilder('resolvedAddress')
-            ->where('resolvedAddress.hash = :hash')
-            ->setParameter('hash', $hash)
-            ->setMaxResults(1);
-
-        if (count($serviceProviders) > 0) {
-            $qb->andWhere('resolvedAddress.serviceProvider IN (:serviceProviders)')
-                ->setParameter('serviceProviders', $serviceProviders);
-        }
-
+    public function getFirstByHash(string $hash): ?ResolvedAddress
+    {
         try {
-            return $qb->getQuery()->getOneOrNullResult();
+            return $this->createQueryBuilder('resolvedAddress')
+                ->where('resolvedAddress.hash = :hash')
+                ->setParameter('hash', $hash)
+                ->setMaxResults(1)
+                ->getQuery()
+                ->getOneOrNullResult();
         } catch (NonUniqueResultException $e) {
             throw new LogicException(
                 'Query with max results as 1 should always return single record',

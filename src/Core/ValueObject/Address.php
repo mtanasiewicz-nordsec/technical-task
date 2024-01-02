@@ -13,4 +13,9 @@ final readonly class Address
         public string $postcode,
     ) {
     }
+
+    public function toString(): string
+    {
+        return "$this->country $this->postcode $this->city $this->street";
+    }
 }

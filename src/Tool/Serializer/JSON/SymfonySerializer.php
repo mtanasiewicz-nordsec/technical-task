@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace App\Tool\Serializer;
+namespace App\Tool\Serializer\JSON;
 
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Encoder\XmlEncoder;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
-use Symfony\Component\Serializer\Serializer;
+use Symfony\Component\Serializer\Serializer as VendorSerializer;
 use Symfony\Component\Serializer\SerializerInterface;
 
-final class SymfonyJsonObjectSerializer implements JsonObjectSerializer
+final class SymfonySerializer implements Serializer
 {
     private SerializerInterface $serializer;
 
@@ -19,7 +19,7 @@ final class SymfonyJsonObjectSerializer implements JsonObjectSerializer
         $encoders = [new XmlEncoder(), new JsonEncoder()];
         $normalizers = [new ObjectNormalizer()];
 
-        $this->serializer = new Serializer($normalizers, $encoders);
+        $this->serializer = new VendorSerializer($normalizers, $encoders);
     }
 
     /**

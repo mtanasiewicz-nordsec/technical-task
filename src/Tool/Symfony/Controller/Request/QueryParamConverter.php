@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tool\Symfony\Controller\Request;
 
-use App\Tool\Serializer\JsonObjectSerializer;
+use App\Tool\Serializer\JSON\Serializer;
 use App\Tool\Serializer\SerializerFailedException;
 use App\Tool\Symfony\Controller\Response\BadRequestResponse;
 use RuntimeException;
@@ -15,11 +15,17 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
-final class QueryParamConverter implements ParamConverterInterface
+use function str_replace;
+
+/**
+ * @deprecated - will be replaced with Symfony 6.x (https://symfony.com/blog/new-in-symfony-6-3-mapping-request-data-to-typed-objects)
+ */
+final readonly class QueryParamConverter implements ParamConverterInterface
 {
     public function __construct(
-        private readonly ValidatorInterface $validator,
-        private readonly JsonObjectSerializer $serializer,
+        private ConstraintExtractor $constraintExtractor,
+        private ValidatorInterface $validator,
+        private Serializer $serializer,
     ) {
     }
 
@@ -40,17 +46,19 @@ final class QueryParamConverter implements ParamConverterInterface
             $data[$key] = $value;
         }
 
-        $object = $this->serializer->deserialize($this->serializer->serialize($data), $class);
+        $constraints = $this->constraintExtractor->extract($class);
 
-        $violations = $this->validator->validate($object);
+        $violations = $this->validator->validate($data, $constraints);
         if ($violations->count() === 0) {
+            $object = $this->serializer->deserialize($this->serializer->serialize($data), $class);
+
             $request->attributes->set($configuration->getName(), $object);
             return true;
         }
 
         $messages = [];
         foreach ($violations as $violation) {
-            $messages[$violation->getPropertyPath()][] = (string) $violation->getMessage();
+            $messages[str_replace(['[', ']'], '', $violation->getPropertyPath())][] = (string) $violation->getMessage();
         }
 
         $response = new JsonResponse(

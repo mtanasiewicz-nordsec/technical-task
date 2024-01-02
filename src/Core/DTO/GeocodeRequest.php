@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core\DTO;
 
-use App\Core\Enum\GeocodingServiceProvider;
 use App\Tool\Symfony\Validator\Constraint\CountryCode;
-use App\Tool\Symfony\Validator\Constraint\EnumValue;
 use Symfony\Component\Validator\Constraints as Assert;
 
 final readonly class GeocodeRequest
@@ -24,8 +22,6 @@ final readonly class GeocodeRequest
         #[Assert\NotBlank]
         #[Assert\Length(min: 1, max: 255)]
         public string $postcode,
-        #[EnumValue(GeocodingServiceProvider::class)]
-        public ?string $serviceProvider = null,
     ) {
     }
 }

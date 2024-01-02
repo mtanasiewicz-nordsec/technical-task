@@ -6,9 +6,15 @@ namespace App\Core\ValueObject;
 
 final readonly class Coordinates
 {
+    public string $lat;
+
+    public string $lng;
+
     public function __construct(
-        public string $lat,
-        public string $lng,
+        string $lat,
+        string $lng,
     ) {
+        $this->lat = rtrim($lat, '0');
+        $this->lng = rtrim($lng, '0');
     }
 }

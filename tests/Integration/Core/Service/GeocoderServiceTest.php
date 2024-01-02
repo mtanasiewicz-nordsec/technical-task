@@ -44,7 +44,7 @@ final class GeocoderServiceTest extends IntegrationTest
      */
     public function testItTriesToResolveAllServices(): void
     {
-        $this->resolvedAddressRepository->method('getFirstByHashAndProviders')->willReturn(null);
+        $this->resolvedAddressRepository->method('getFirstByHash')->willReturn(null);
         $unsuccessfulResponse = $this->createMock(ResponseInterface::class);
         $unsuccessfulResponse->method('getStatusCode')->willReturn(404);
         $this->client
@@ -69,7 +69,7 @@ final class GeocoderServiceTest extends IntegrationTest
      */
     public function testItResolves(): void
     {
-        $this->resolvedAddressRepository->method('getFirstByHashAndProviders')->willReturn(null);
+        $this->resolvedAddressRepository->method('getFirstByHash')->willReturn(null);
         $notFoundResponse = $this->createMock(ResponseInterface::class);
         $notFoundResponse->method('getStatusCode')->willReturn(404);
         $hereMapsResponse = $this->createMock(ResponseInterface::class);
@@ -103,7 +103,7 @@ final class GeocoderServiceTest extends IntegrationTest
      */
     public function testItResolvesByExactServiceProvider(): void
     {
-        $this->resolvedAddressRepository->method('getFirstByHashAndProviders')->willReturn(null);
+        $this->resolvedAddressRepository->method('getFirstByHash')->willReturn(null);
         $hereMapsResponse = $this->createMock(ResponseInterface::class);
         $hereMapsResponse->method('getStatusCode')->willReturn(200);
         $hereMapsResponse
@@ -135,7 +135,7 @@ final class GeocoderServiceTest extends IntegrationTest
         $resolvedAddressMock->method('getLng')->willReturn('20.0002');
 
         $this->resolvedAddressRepository
-            ->method('getFirstByHashAndProviders')
+            ->method('getFirstByHash')
             ->willReturn(
                 $resolvedAddressMock,
             );
