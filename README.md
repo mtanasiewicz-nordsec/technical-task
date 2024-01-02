@@ -66,3 +66,17 @@ JSON. If you want to check different address, just update the params in the url.
 To access api docs go to [http://localhost/api/doc](http://localhost/api/doc)
 
 And that's it, good luck!
+
+## How to run tests
+### Prepare your database first
+```shell
+make tests-db
+```
+
+### Run your tests
+
+```shell
+make run-tests
+```
+
+Or you can configure it in PHPStorm and run there, what is recommended.

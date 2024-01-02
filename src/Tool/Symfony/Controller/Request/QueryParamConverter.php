@@ -6,13 +6,10 @@ namespace App\Tool\Symfony\Controller\Request;
 
 use App\Tool\Serializer\JSON\Serializer;
 use App\Tool\Serializer\SerializerFailedException;
-use App\Tool\Symfony\Controller\Response\BadRequestResponse;
 use RuntimeException;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
 use Sensio\Bundle\FrameworkExtraBundle\Request\ParamConverter\ParamConverterInterface;
-use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 use function str_replace;
@@ -31,6 +28,7 @@ final readonly class QueryParamConverter implements ParamConverterInterface
 
     /**
      * @throws SerializerFailedException
+     * @throws BadRequestHttpException
      */
     public function apply(Request $request, ParamConverter $configuration): bool
     {
@@ -61,14 +59,7 @@ final readonly class QueryParamConverter implements ParamConverterInterface
             $messages[str_replace(['[', ']'], '', $violation->getPropertyPath())][] = (string) $violation->getMessage();
         }
 
-        $response = new JsonResponse(
-            new BadRequestResponse($messages),
-            Response::HTTP_BAD_REQUEST,
-        );
-        $response->prepare($request);
-        $response->send();
-
-        return true;
+        throw new BadRequestHttpException($messages);
     }
 
     public function supports(ParamConverter $configuration): bool

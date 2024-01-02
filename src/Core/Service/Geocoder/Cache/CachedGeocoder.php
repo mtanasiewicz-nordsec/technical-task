@@ -11,11 +11,14 @@ use App\Core\ValueObject\Coordinates;
 final readonly class CachedGeocoder implements GeocoderInterface
 {
     public function __construct(
-        public CoordinatesCache $coordinatesCache,
+        public CoordinatesCacheInterface $coordinatesCache,
         public GeocoderInterface $geocoder,
     ) {
     }
 
+    /**
+     * @inheritDoc
+     */
     public function geocode(Address $address): ?Coordinates
     {
         $cachedCoordinates = $this->coordinatesCache->get($address);

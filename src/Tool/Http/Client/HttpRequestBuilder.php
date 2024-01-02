@@ -29,27 +29,27 @@ final class HttpRequestBuilder
     ) {
     }
 
-    public static function GET(string $uri): self
+    public static function get(string $uri): self
     {
         return (new self('GET', $uri));
     }
 
-    public static function POST(string $uri): self
+    public static function post(string $uri): self
     {
         return (new self('POST', $uri));
     }
 
-    public static function PUT(string $uri): self
+    public static function put(string $uri): self
     {
         return (new self('PUT', $uri));
     }
 
-    public static function PATCH(string $uri): self
+    public static function patch(string $uri): self
     {
         return (new self('PATCH', $uri));
     }
 
-    public static function DELETE(string $uri): self
+    public static function delete(string $uri): self
     {
         return (new self('DELETE', $uri));
     }

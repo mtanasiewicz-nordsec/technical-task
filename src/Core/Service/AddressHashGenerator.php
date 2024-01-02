@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core\Service;
 
-final class AddressHashGenerator
+final readonly class AddressHashGenerator
 {
     public function generate(
         string $country,

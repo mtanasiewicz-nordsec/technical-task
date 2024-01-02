@@ -7,6 +7,6 @@ namespace App\Tool\Symfony\Controller;
 /**
  * Marking interface
  */
-interface LoggableController extends LoggableRequestController, LoggableResponseController
+interface LoggableRequestControllerInterface
 {
 }

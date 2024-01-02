@@ -4,27 +4,34 @@ declare(strict_types=1);
 
 namespace App\Core\Service\Geocoder\HereMaps;
 
+use App\Core\Exception\GeocodingFailedException;
 use App\Core\Service\Geocoder\GeocoderInterface;
+use App\Core\Service\Geocoder\HereMaps\Response\HereMapsGeocodeResponse;
 use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
 use App\Tool\Http\Client\HttpRequestBuilder;
-use JsonException;
+use App\Tool\Serializer\JSON\Serializer;
+use App\Tool\Serializer\SerializerFailedException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
-use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\Response;
 
 final readonly class HereMapsGeocoder implements GeocoderInterface
 {
     public function __construct(
-        private LoggerInterface $logger,
         private ClientInterface $httpClient,
+        private Serializer $serializer,
         private string $apiKey,
+        private string $endpoint,
     ) {
     }
 
+    /**
+     * @inheritDoc
+     */
     public function geocode(Address $address): ?Coordinates
     {
-        $request = HttpRequestBuilder::GET('https://geocode.search.hereapi.com/v1/geocode')
+        $request = HttpRequestBuilder::get($this->endpoint)
             ->withQueryParams([
                 'qq' => implode(
                     ';',
@@ -42,68 +49,49 @@ final readonly class HereMapsGeocoder implements GeocoderInterface
         try {
             $response = $this->httpClient->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
-            $this->logger->error(
-                'HereMaps geocoding failed with exception',
+            throw new GeocodingFailedException(
+                'Geocoding failed with exception.',
                 [
+                    'geocoder' => self::class,
                     'exception' => $e,
-                ]
+                ],
+                $e,
             );
-
-            return null;
         }
 
-        if ($response->getStatusCode() !== 200) {
-            $this->logger->error(
-                "HereMaps geocoding request failed with status code {$response->getStatusCode()}."
+        if ($response->getStatusCode() !== Response::HTTP_OK) {
+            throw new GeocodingFailedException(
+                'Geocoding request failed with unexpected status code.',
+                [
+                    'geocoder' => self::class,
+                    'status_code' => $response->getStatusCode(),
+                ]
             );
-
-            return null;
         }
 
         try {
-            $data = json_decode(
+            $hereMapsResponse = $this->serializer->deserialize(
                 $response->getBody()->getContents(),
-                true,
-                512,
-                JSON_THROW_ON_ERROR,
+                HereMapsGeocodeResponse::class,
             );
-        } catch (JsonException $e) {
-            $this->logger->error(
-                'Decoding HereMaps response failed.',
+        } catch (SerializerFailedException $e) {
+            throw new GeocodingFailedException(
+                'Decoding geocoder response failed.',
                 [
+                    'geocoder' => self::class,
                     'exception' => $e,
-                ]
+                ],
+                $e,
             );
-
-            return null;
         }
 
-        if (count($data['items']) === 0) {
-            $this->logger->info(
-                'HereMaps geocoder found no coordinates',
-                [
-                    'address' => $address->toString(),
-                ]
-            );
-
-            return null;
-        }
-
-        $firstItem = $data['items'][0];
-        if ($firstItem['resultType'] !== 'houseNumber') {
-            $this->logger->info(
-                'HereMaps geocoder found no coordinates',
-                [
-                    'address' => $address->toString(),
-                ]
-            );
-
+        if (!$hereMapsResponse->isProcessable()) {
             return null;
         }
 
         return new Coordinates(
-            (string) $firstItem['position']['lat'],
-            (string) $firstItem['position']['lng'],
+            (string) $hereMapsResponse->getFirstLatitude(),
+            (string) $hereMapsResponse->getFirstLongitude(),
         );
     }
 }

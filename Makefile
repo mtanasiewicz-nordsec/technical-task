@@ -51,5 +51,11 @@ cct:
 invalidate-geocoders-cache:
 	docker-compose exec php bash -c "bin/console app:invalidate-coordinates-cache"
 
+tests-db:
+	docker-compose exec php bash -c "bin/console d:d:d --env=test --force --if-exists"
+	docker-compose exec php bash -c "bin/console d:d:c --env=test"
+	docker-compose exec php bash -c "bin/console d:m:m --env=test --no-interaction"
+
 run-tests:
+	@make tests-db
 	docker-compose exec php bash -c "php bin/phpunit"

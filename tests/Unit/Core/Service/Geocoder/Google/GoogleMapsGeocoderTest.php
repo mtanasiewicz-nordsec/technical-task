@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Unit\Core\Service\Geocoder\HereMaps;
+namespace App\Tests\Unit\Core\Service\Geocoder\Google;
 
 use App\Core\Exception\GeocodingFailedException;
 use App\Core\Service\Geocoder\GeocoderInterface;
-use App\Core\Service\Geocoder\HereMaps\HereMapsGeocoder;
+use App\Core\Service\Geocoder\Google\GoogleMapsGeocoder;
 use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
 use App\Tests\Doubles\Tool\Http\Client\PSRClientException;
@@ -23,7 +23,7 @@ use Psr\Http\Message\StreamInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
-final class HereMapsGeocoderTest extends UnitTest
+final class GoogleMapsGeocoderTest extends UnitTest
 {
     private MockObject&ClientInterface $clientMock;
 
@@ -49,7 +49,7 @@ final class HereMapsGeocoderTest extends UnitTest
         $this->clientMock = $this->createMock(ClientInterface::class);
         $this->responseMock = $this->createMock(ResponseInterface::class);
 
-        $this->geocoder = new HereMapsGeocoder(
+        $this->geocoder = new GoogleMapsGeocoder(
             $this->clientMock,
             SerializerMother::create(),
             $this->apiKey,
@@ -57,12 +57,7 @@ final class HereMapsGeocoderTest extends UnitTest
         );
 
         $this->clientException = new PSRClientException('Some exception');
-        $this->testAddress = new Address(
-            'country',
-            'city',
-            'street',
-            'postCode',
-        );
+        $this->testAddress = new Address('country', 'city', 'street', 'postCode');
         $this->testCoordinates = new Coordinates('10.0001', '20.0002');
     }
 
@@ -82,14 +77,13 @@ final class HereMapsGeocoderTest extends UnitTest
                     function (RequestInterface $request) {
                         $this->assertProperQueryPartPassedToHttpClient(
                             [
-                                "apiKey=$this->apiKey",
-                                //qq part
-                                [
-                                    "city={$this->testAddress->city}",
-                                    "country={$this->testAddress->country}",
-                                    "postalCode={$this->testAddress->postcode}",
-                                    "street={$this->testAddress->street}",
-                                ]
+                                'address' => $this->testAddress->street,
+                                'components' => [
+                                    "country:{$this->testAddress->country}",
+                                    "locality:{$this->testAddress->city}",
+                                    "postal_code:{$this->testAddress->postcode}",
+                                ],
+                                'key' => $this->apiKey,
                             ],
                             $request,
                         );
@@ -119,11 +113,11 @@ final class HereMapsGeocoderTest extends UnitTest
     /**
      * @throws GeocodingFailedException
      */
-    #[Test]
     #[DataProvider('unprocessableResponse')]
-    public function geocodeWhenHttpClientReturnsUnprocessableShouldReturnNull(string $body): void
+    #[Test]
+    public function geocodeWhenHttpClientReturnsUnprocessableResponseShouldReturnNull(string $response): void
     {
-        $this->configureResponse(Response::HTTP_OK, $body);
+        $this->configureResponse(Response::HTTP_OK, $response);
 
         $result = $this->geocoder->geocode($this->testAddress);
 
@@ -139,20 +133,21 @@ final class HereMapsGeocoderTest extends UnitTest
             [
                 <<<JSON
                 {
-                   "items":[]
+                   "results":[]
                 }
                 JSON,
             ],
             [
                 <<<JSON
                 {
-                   "items":[
+                   "results":[
                       {
-                         "resultType":"differentStuff",
-                         "houseNumberType":"PA",
-                         "position":{
-                            "lat": 100,
-                            "lng": 100
+                         "geometry": {
+                            "location_type": "NO_ROOFTOP",
+                            "location": {
+                                "lat": 11,
+                                "lng": 10
+                            }
                          }
                       }
                    ]
@@ -163,21 +158,9 @@ final class HereMapsGeocoderTest extends UnitTest
     }
 
     #[Test]
-    public function geocodeWhenHttpClientReturnsUnsuccessfulHttpStatusShouldThrowException(): void
+    public function geocodeWhenHttpClientReturnsDifferentHttpStatusCodeShouldThrowException(): void
     {
-        $this->configureCoordinatesResponse(Response::HTTP_BAD_REQUEST, $this->testCoordinates);
-
-        $this->expectException(GeocodingFailedException::class);
-
-        $this->geocoder->geocode($this->testAddress);
-    }
-
-    #[Test]
-    public function geocodeWhenHttpClientThrowsExceptionShouldThrowException(): void
-    {
-        $this->clientMock
-            ->method('sendRequest')
-            ->willThrowException($this->clientException);
+        $this->configureCoordinatesResponse(Response::HTTP_CREATED, $this->testCoordinates);
 
         $this->expectException(GeocodingFailedException::class);
 
@@ -204,41 +187,58 @@ final class HereMapsGeocoderTest extends UnitTest
             [
                 <<<JSON
                 {
-                   "items":[
+                   "results":[
                       {
-                         "resultType":"houseNumber",
-                         "houseNumberType":"PA",
-                         "position":{}
+                         "geometry": {
+                            "location_type": "ROOFTOP",
+                            "location": {
+                                "latitude": 10,
+                                "longitude": 11
+                            }
+                         }
                       }
                    ]
                 }
-            JSON,
+                JSON,
             ],
             [
                 <<<JSON
                 {
-                   "message": "Something went wrong."
+                   "message": "something went wrong"
                 }
-            JSON,
+                JSON,
             ],
         ];
     }
 
-    private function configureCoordinatesResponse(int $httpStatus, Coordinates $coordinates): void
+    #[Test]
+    public function geocodeWhenHttpClientThrowsExceptionShouldThrowGeocodingFailedException(): void
+    {
+        $this->expectException(GeocodingFailedException::class);
+
+        $this->clientMock
+            ->method('sendRequest')
+            ->willThrowException($this->clientException);
+
+        $this->geocoder->geocode($this->testAddress);
+    }
+
+    private function configureCoordinatesResponse(int $httpStatusCode, Coordinates $coordinates): void
     {
         $lat = (float) $coordinates->lat;
         $lng = (float) $coordinates->lng;
         $this->configureResponse(
-            $httpStatus,
+            $httpStatusCode,
             <<<JSON
             {
-               "items":[
+               "results":[
                   {
-                     "resultType": "houseNumber",
-                     "houseNumberType": "PA",
-                     "position":{
-                        "lat": $lat,
-                        "lng": $lng
+                     "geometry": {
+                        "location_type": "ROOFTOP",
+                        "location": {
+                            "lat": $lat,
+                            "lng": $lng
+                        }
                      }
                   }
                ]
@@ -259,21 +259,26 @@ final class HereMapsGeocoderTest extends UnitTest
         return Utils::streamFor($string);
     }
 
-    /**
-     * @param mixed[]
-     */
-    private function assertProperQueryPartPassedToHttpClient(array $expected, RequestInterface $request): void
-    {
-        $decoded = urldecode($request->getUri()->getQuery());
-        $exploded = explode('&', $decoded);
-        sort($exploded);
+    private function assertProperQueryPartPassedToHttpClient(
+        array $expectedResult,
+        RequestInterface $request,
+    ): void {
+        $result = [];
+        $explodedQuery = explode('&', $request->getUri()->getQuery());
+        foreach ($explodedQuery as $value) {
+            $explodedParam = explode('=', $value);
+            if ($explodedParam[0] === 'components') {
+                $result[$explodedParam[0]] = explode('%7C', $explodedParam[1]);
+                sort($result[$explodedParam[0]]);
+            } else {
+                $result[$explodedParam[0]] = $explodedParam[1];
+            }
+        }
+        ksort($result);
 
-        $this->assertCount(2, $exploded);
-        $this->assertStringStartsWith('qq=', $exploded[1]);
-
-        $exploded[1] = explode(';', str_replace('qq=', '', $exploded[1]));
-        sort($exploded[1]);
-
-        $this->assertSame($expected, $exploded);
+        $this->assertSame(
+            $expectedResult,
+            $result,
+        );
     }
 }
