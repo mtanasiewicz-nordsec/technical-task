@@ -51,15 +51,15 @@ services:
 
     App\Core\Service\Geocoder\Google\GoogleMapsGeocoder:
         arguments:
-            $logger: '@logger'
             $httpClient: '@http_client.loggable'
             $apiKey: '%env(GOOGLE_GEOCODING_API_KEY)%'
+            $endpoint: 'https://maps.googleapis.com/maps/api/geocode/json'
 
     App\Core\Service\Geocoder\HereMaps\HereMapsGeocoder:
         arguments:
-            $logger: '@logger'
             $httpClient: '@http_client.loggable'
             $apiKey: '%env(HEREMAPS_GEOCODING_API_KEY)%'
+            $endpoint: 'https://geocode.search.hereapi.com/v1/geocode'
 
     geocoder.full_stack:
         class: App\Core\Service\Geocoder\Stack\GeocoderStack

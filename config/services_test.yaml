@@ -1,13 +1,9 @@
 services:
-    http_client.guzzle:
-        class: GuzzleHttp\Client
+    http_client.loggable:
+        class: App\Tests\Doubles\Tool\Http\Client\BlockedTestHttpClient
         public: true
 
-    App\Core\Repository\DoctrineResolvedAddressRepository:
+    App\Core\Repository\ResolvedAddressRepository:
         public: true
         arguments:
             $registry: '@Doctrine\Common\Persistence\ManagerRegistry'
-
-    http_client.loggable:
-        class: GuzzleHttp\Client
-        public: true

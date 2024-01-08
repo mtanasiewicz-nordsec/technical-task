@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Core\CLI;
 
-use App\Core\Service\Geocoder\Cache\CoordinatesCache;
+use App\Core\Service\Geocoder\Cache\CoordinatesCacheInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -15,7 +15,7 @@ final class InvalidateCoordinatesCacheCommand extends Command
     protected static $defaultName = 'app:invalidate-coordinates-cache';
 
     public function __construct(
-        private readonly CoordinatesCache $coordinatesCache,
+        private readonly CoordinatesCacheInterface $coordinatesCache,
         private readonly int $cacheMinutes = 600,
     ) {
         parent::__construct();

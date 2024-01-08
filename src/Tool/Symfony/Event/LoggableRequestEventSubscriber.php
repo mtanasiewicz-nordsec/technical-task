@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tool\Symfony\Event;
 
-use App\Tool\Symfony\Controller\LoggableRequestController;
-use App\Tool\Symfony\Controller\LoggableResponseController;
+use App\Tool\Symfony\Controller\LoggableRequestControllerInterface;
+use App\Tool\Symfony\Controller\LoggableResponseControllerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\Controller\ControllerResolverInterface;
@@ -39,7 +39,7 @@ final readonly class LoggableRequestEventSubscriber implements EventSubscriberIn
             return;
         }
 
-        if (!is_array($controller) || !$controller[0] instanceof LoggableRequestController) {
+        if (!is_array($controller) || !$controller[0] instanceof LoggableRequestControllerInterface) {
             return;
         }
 
@@ -61,7 +61,7 @@ final readonly class LoggableRequestEventSubscriber implements EventSubscriberIn
             return;
         }
 
-        if (!is_array($controller) || !$controller[0] instanceof LoggableResponseController) {
+        if (!is_array($controller) || !$controller[0] instanceof LoggableResponseControllerInterface) {
             return;
         }
 

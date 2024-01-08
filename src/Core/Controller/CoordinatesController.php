@@ -8,7 +8,7 @@ use App\Core\DTO\GeocodeRequest;
 use App\Core\DTO\GeocodeResponse;
 use App\Core\Service\GeocoderService;
 use App\Core\ValueObject\Address;
-use App\Tool\Symfony\Controller\LoggableController;
+use App\Tool\Symfony\Controller\LoggableControllerInterface;
 use App\Tool\Symfony\Controller\Response\BadRequestResponse;
 use App\Tool\Symfony\Controller\RestController;
 use Nelmio\ApiDocBundle\Annotation\Model;
@@ -17,7 +17,7 @@ use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
-final class CoordinatesController extends RestController implements LoggableController
+final class CoordinatesController extends RestController implements LoggableControllerInterface
 {
     public function __construct(
         private readonly GeocoderService $geocoderService,

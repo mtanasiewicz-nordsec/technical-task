@@ -4,27 +4,34 @@ declare(strict_types=1);
 
 namespace App\Core\Service\Geocoder\Google;
 
+use App\Core\Exception\GeocodingFailedException;
 use App\Core\Service\Geocoder\GeocoderInterface;
+use App\Core\Service\Geocoder\Google\Response\GoogleGeocodeResponse;
 use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
 use App\Tool\Http\Client\HttpRequestBuilder;
-use JsonException;
+use App\Tool\Serializer\JSON\Serializer;
+use App\Tool\Serializer\SerializerFailedException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
-use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\Response;
 
 final readonly class GoogleMapsGeocoder implements GeocoderInterface
 {
     public function __construct(
         private ClientInterface $httpClient,
-        private LoggerInterface $logger,
+        private Serializer $serializer,
         private string $apiKey,
+        private string $endpoint,
     ) {
     }
 
+    /**
+     * @inheritDoc
+     */
     public function geocode(Address $address): ?Coordinates
     {
-        $request = HttpRequestBuilder::GET('https://maps.googleapis.com/maps/api/geocode/json')
+        $request = HttpRequestBuilder::get($this->endpoint)
             ->withQueryParams([
                 'address' => $address->street,
                 'components' => implode(
@@ -42,68 +49,49 @@ final readonly class GoogleMapsGeocoder implements GeocoderInterface
         try {
             $response = $this->httpClient->sendRequest($request);
         } catch (ClientExceptionInterface $e) {
-            $this->logger->error(
-                'GoogleMaps geocoding failed with exception',
+            throw new GeocodingFailedException(
+                'Geocoding failed with exception.',
                 [
+                    'geocoder' => self::class,
                     'exception' => $e,
-                ]
+                ],
+                $e,
             );
-
-            return null;
         }
 
-        if ($response->getStatusCode() !== 200) {
-            $this->logger->error(
-                "GoogleMaps geocoding request failed with status code {$response->getStatusCode()}."
+        if ($response->getStatusCode() !== Response::HTTP_OK) {
+            throw new GeocodingFailedException(
+                'Geocoding request failed with unexpected status code.',
+                [
+                    'geocoder' => self::class,
+                    'status_code' => $response->getStatusCode(),
+                ]
             );
-
-            return null;
         }
 
         try {
-            $data = json_decode(
+            $response = $this->serializer->deserialize(
                 $response->getBody()->getContents(),
-                true,
-                512,
-                JSON_THROW_ON_ERROR,
+                GoogleGeocodeResponse::class,
             );
-        } catch (JsonException $e) {
-            $this->logger->error(
-                'Decoding GoogleMaps response failed.',
+        } catch (SerializerFailedException $e) {
+            throw new GeocodingFailedException(
+                'Decoding geocoder response failed.',
                 [
+                    'geocoder' => self::class,
                     'exception' => $e,
-                ]
+                ],
+                $e,
             );
-
-            return null;
         }
 
-        if (count($data['results']) === 0) {
-            $this->logger->info(
-                'GoogleMaps geocoder found no coordinates',
-                [
-                    'address' => $address->toString(),
-                ]
-            );
-
-            return null;
-        }
-
-        $firstResult = $data['results'][0];
-        if ($firstResult['geometry']['location_type'] !== 'ROOFTOP') {
-            $this->logger->info(
-                'GoogleMaps geocoder found no coordinates',
-                [
-                    'address' => $address->toString(),
-                ]
-            );
-
+        if (!$response->isProcessable()) {
             return null;
         }
 
         return new Coordinates(
-            (string) $firstResult['geometry']['location']['lat'],
-            (string) $firstResult['geometry']['location']['lng'],
+            (string) $response->getFirstLatitude(),
+            (string) $response->getFirstLongitude(),
         );
     }
 }

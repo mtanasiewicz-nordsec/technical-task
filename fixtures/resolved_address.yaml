@@ -1,0 +1,11 @@
+App\Core\Entity\ResolvedAddress:
+    resolved_address_default_cache:
+        __factory:
+            create:
+                - pl
+                - city
+                - street
+                - postcode
+                - 4e42a0269315798ab7a69a62c07e9f0f
+                - '10.01'
+                - '20.02'

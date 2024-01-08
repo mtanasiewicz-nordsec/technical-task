@@ -7,7 +7,7 @@ namespace App\Core\Service\Geocoder\Cache;
 use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
 
-interface CoordinatesCache
+interface CoordinatesCacheInterface
 {
     public function get(Address $address): ?Coordinates;
 

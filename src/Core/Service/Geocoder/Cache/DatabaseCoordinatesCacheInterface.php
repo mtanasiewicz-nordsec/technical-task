@@ -11,7 +11,7 @@ use App\Core\ValueObject\Address;
 use App\Core\ValueObject\Coordinates;
 use DateTime;
 
-final readonly class DatabaseCoordinatesCache implements CoordinatesCache
+final readonly class DatabaseCoordinatesCacheInterface implements CoordinatesCacheInterface
 {
     public function __construct(
         private AddressHashGenerator $addressHashGenerator,

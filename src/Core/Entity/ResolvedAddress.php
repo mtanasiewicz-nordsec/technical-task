@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Core\Entity;
 
-use App\Core\Repository\DoctrineResolvedAddressRepository;
+use App\Core\Repository\ResolvedAddressRepository;
 use DateTime;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity(repositoryClass: DoctrineResolvedAddressRepository::class)]
+#[ORM\Entity(repositoryClass: ResolvedAddressRepository::class)]
 #[ORM\Table(name: 'resolved_addresses')]
 #[ORM\Index(columns: ['created_at'], name: 'resolved_addresses_created_at_idx')]
 #[ORM\Index(columns: ['hash'], name: 'resolved_addresses_hash_idx')]
